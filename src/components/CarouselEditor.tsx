@@ -102,6 +102,7 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
       title: 'Judul Slide Baru',
       subtitle: 'Tambahkan subjudul menarik di sini',
       body: ['Tulis poin penjelasan singkat pertama.', 'Tulis poin penjelasan singkat kedua.'],
+      showPointIcons: false,
     };
 
     const updatedSlides = [...carousel.slides, newSlide];
@@ -944,6 +945,47 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
                 </div>
               </div>
 
+              {/* Ikon pada poin: opsional, bisa dimatikan per slide */}
+              {(activeSlide.slideType === 'list' || activeSlide.slideType === 'content') && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-[10px] font-bold text-[#8C8881] uppercase tracking-[0.1em]">Ikon pada Poin</label>
+                      <p className="text-[9px] text-stone-500 font-medium">Matikan agar poin tampil sebagai teks saja.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={activeSlide.showPointIcons !== false}
+                        onChange={(e) => updateActiveSlideField({ showPointIcons: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-8 h-4 bg-stone-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-black"></div>
+                    </label>
+                  </div>
+
+                  {activeSlide.showPointIcons !== false && (
+                    <div className="animate-fade-in">
+                      <label className="block text-[10px] font-bold text-[#8C8881] uppercase tracking-[0.1em] mb-1">Pilih Ikon</label>
+                      <div className="grid grid-cols-5 gap-1 max-h-[85px] overflow-y-auto bg-[#F9F8F6] p-1.5 border border-[#E5E2DD] rounded-lg">
+                        {AVAILABLE_ICONS.map((iconName) => (
+                          <button
+                            key={iconName}
+                            type="button"
+                            onClick={() => updateActiveSlideField({ icon: iconName })}
+                            className={`p-1 text-[10px] rounded text-center transition truncate hover:bg-[#F3F1EE] hover:text-[#1A1A1A] font-medium cursor-pointer ${
+                              activeSlide.icon === iconName ? 'bg-[#1A1A1A] text-white shadow-sm' : 'text-[#8C8881]'
+                            }`}
+                            title={iconName}
+                          >
+                            {iconName}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
