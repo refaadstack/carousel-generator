@@ -21,7 +21,7 @@ export interface Slide {
   subtitle?: string;
   body: string[]; // paragraph or bullet points
   icon?: string; // lucide icon name
-  showPointIcons?: boolean; // tampilkan ikon di samping tiap poin (default: tampil)
+  pointMarker?: 'dot' | 'dash' | 'number' | 'none'; // penanda poin, tanpa ikon
   slideType: SlideType;
   backgroundColorOverride?: string;
   textColorOverride?: string;

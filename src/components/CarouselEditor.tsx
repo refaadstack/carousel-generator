@@ -102,7 +102,7 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
       title: 'Judul Slide Baru',
       subtitle: 'Tambahkan subjudul menarik di sini',
       body: ['Tulis poin penjelasan singkat pertama.', 'Tulis poin penjelasan singkat kedua.'],
-      showPointIcons: false,
+      pointMarker: 'dot',
     };
 
     const updatedSlides = [...carousel.slides, newSlide];
@@ -945,45 +945,33 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
                 </div>
               </div>
 
-              {/* Ikon pada poin: opsional, bisa dimatikan per slide */}
+              {/* Penanda poin: bullet, strip, angka, atau tanpa penanda */}
               {(activeSlide.slideType === 'list' || activeSlide.slideType === 'content') && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="block text-[10px] font-bold text-[#8C8881] uppercase tracking-[0.1em]">Ikon pada Poin</label>
-                      <p className="text-[9px] text-stone-500 font-medium">Matikan agar poin tampil sebagai teks saja.</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={activeSlide.showPointIcons !== false}
-                        onChange={(e) => updateActiveSlideField({ showPointIcons: e.target.checked })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-8 h-4 bg-stone-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-black"></div>
-                    </label>
+                <div>
+                  <label className="block text-[10px] font-bold text-[#8C8881] uppercase tracking-[0.1em] mb-1">Penanda Poin</label>
+                  <p className="text-[9px] text-stone-500 font-medium mb-1.5">Tanpa ikon. Pilih penanda teks yang paling cocok.</p>
+                  <div className="grid grid-cols-4 gap-1 bg-[#F9F8F6] p-1.5 border border-[#E5E2DD] rounded-lg">
+                    {[
+                      { id: 'dot', label: 'Bullet' },
+                      { id: 'dash', label: 'Strip' },
+                      { id: 'number', label: 'Angka' },
+                      { id: 'none', label: 'Tanpa' },
+                    ].map((opt) => {
+                      const selected = (activeSlide.pointMarker || 'dot') === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => updateActiveSlideField({ pointMarker: opt.id as Slide['pointMarker'] })}
+                          className={`py-1.5 px-1 text-[10px] rounded text-center transition font-medium cursor-pointer ${
+                            selected ? 'bg-[#1A1A1A] text-white shadow-sm' : 'text-[#8C8881] hover:bg-[#F3F1EE] hover:text-[#1A1A1A]'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
                   </div>
-
-                  {activeSlide.showPointIcons !== false && (
-                    <div className="animate-fade-in">
-                      <label className="block text-[10px] font-bold text-[#8C8881] uppercase tracking-[0.1em] mb-1">Pilih Ikon</label>
-                      <div className="grid grid-cols-5 gap-1 max-h-[85px] overflow-y-auto bg-[#F9F8F6] p-1.5 border border-[#E5E2DD] rounded-lg">
-                        {AVAILABLE_ICONS.map((iconName) => (
-                          <button
-                            key={iconName}
-                            type="button"
-                            onClick={() => updateActiveSlideField({ icon: iconName })}
-                            className={`p-1 text-[10px] rounded text-center transition truncate hover:bg-[#F3F1EE] hover:text-[#1A1A1A] font-medium cursor-pointer ${
-                              activeSlide.icon === iconName ? 'bg-[#1A1A1A] text-white shadow-sm' : 'text-[#8C8881]'
-                            }`}
-                            title={iconName}
-                          >
-                            {iconName}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -1013,7 +1001,7 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={activeSlide.showTitleIcon !== undefined ? activeSlide.showTitleIcon : (activeSlide.slideType === 'call_to_action')}
+                  checked={activeSlide.showTitleIcon === true}
                   onChange={(e) => updateActiveSlideField({ showTitleIcon: e.target.checked })}
                   className="sr-only peer"
                 />
@@ -1022,10 +1010,10 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
             </div>
 
             <p className="text-[9px] text-stone-500 leading-normal font-medium">
-              Aktifkan untuk menambahkan simbol ikon visual yang manis tepat di atas judul slide Anda.
+              Opsional. Tampilkan ikon di atas judul hanya jika memang perlu.
             </p>
 
-            {(activeSlide.showTitleIcon !== undefined ? activeSlide.showTitleIcon : (activeSlide.slideType === 'call_to_action')) && (
+            {activeSlide.showTitleIcon === true && (
               <div className="space-y-1.5 animate-fade-in">
                 <label className="block text-[9px] font-bold text-stone-700">Pilih Desain Ikon</label>
                 <div className="grid grid-cols-5 gap-1 max-h-[85px] overflow-y-auto bg-white p-1.5 border border-[#E5E2DD] rounded-lg">

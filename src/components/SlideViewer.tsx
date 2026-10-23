@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import {
   getSlideIcon,
+  PointMarker,
   isThemeDark,
   renderFormattedText,
   renderSlideImage,
@@ -995,7 +996,7 @@ export const SlideViewer: React.FC<SlideViewerProps> = ({
                     ) : currentSlide.slideType === "call_to_action" ? (
                       /* 4. Elegant High-Engagement CTA Layout */
                       <div className="space-y-4 w-full my-auto flex flex-col items-center text-center py-4">
-                        {currentSlide.showTitleIcon !== false && (
+                        {currentSlide.showTitleIcon === true && (
                           <div className="p-2 rounded-full bg-amber-500/10 border border-amber-500/25 mb-1 shrink-0">
                             {(() => {
                               const DefaultIcon =
@@ -1423,8 +1424,8 @@ export const SlideViewer: React.FC<SlideViewerProps> = ({
                                         key={bIdx}
                                         className="p-2.5 bg-white border border-black text-black font-semibold text-[10px] flex items-center gap-2 shadow-[2px_2px_0px_#000] rounded-lg text-left"
                                       >
-                                        <div className="w-5 h-5 rounded border border-black bg-emerald-100 flex items-center justify-center font-bold text-emerald-800 text-[10px] shrink-0 shadow-[1px_1px_0px_#000]">
-                                          ✓
+                                        <div className="w-5 h-5 rounded border border-black bg-emerald-100 flex items-center justify-center font-bold text-emerald-800 text-[8px] shrink-0 shadow-[1px_1px_0px_#000] font-mono">
+                                          {String(bIdx + 1).padStart(2, "0")}
                                         </div>
                                         <span
                                           className="text-stone-800 font-sans tracking-wide leading-snug"
@@ -1449,13 +1450,6 @@ export const SlideViewer: React.FC<SlideViewerProps> = ({
                                       </div>
                                     );
                                   }
-                                  const IconComponent = getSlideIcon(
-                                    currentSlide.icon,
-                                  );
-                                  const showPointIcon =
-                                    (currentSlide.slideType === "list" ||
-                                      currentSlide.slideType === "content") &&
-                                    currentSlide.showPointIcons !== false;
                                   return (
                                     <div
                                       key={bIdx}
@@ -1468,22 +1462,16 @@ export const SlideViewer: React.FC<SlideViewerProps> = ({
                                             : "flex-row text-left"
                                       } items-start`}
                                     >
-                                      {showPointIcon && (
-                                        <div
-                                          className="p-1 rounded-md shrink-0 mt-0.5"
-                                          style={{
-                                            backgroundColor: `${getSlideColors(carousel, activeBrand, currentSlide).primary}15`,
-                                          }}
-                                        >
-                                          <IconComponent
-                                            className="w-3.5 h-3.5"
-                                            style={{
-                                              color:
-                                                getSlideColors(carousel, activeBrand, currentSlide)
-                                                  .primary,
-                                            }}
-                                          />
-                                        </div>
+                                      {(currentSlide.slideType === "list" ||
+                                        currentSlide.slideType === "content") && (
+                                        <PointMarker
+                                          index={bIdx}
+                                          marker={currentSlide.pointMarker}
+                                          color={
+                                            getSlideColors(carousel, activeBrand, currentSlide)
+                                              .primary
+                                          }
+                                        />
                                       )}
                                       <p
                                         className="text-xs leading-relaxed font-normal opacity-90 text-balance"

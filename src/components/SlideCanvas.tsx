@@ -28,6 +28,36 @@ import {
   ExternalLink,
 } from "lucide-react";
 
+export const PointMarker: React.FC<{
+  index: number;
+  marker?: "dot" | "dash" | "number" | "none";
+  color: string;
+}> = ({ index, marker = "dot", color }) => {
+  if (marker === "none") return null;
+  const base = "w-5 shrink-0 flex justify-center";
+  if (marker === "number") {
+    return (
+      <span className={`${base} mt-[3px]`} aria-hidden="true">
+        <span className="text-[9px] font-mono font-bold leading-none" style={{ color }}>
+          {String(index + 1).padStart(2, "0")}
+        </span>
+      </span>
+    );
+  }
+  if (marker === "dash") {
+    return (
+      <span className={`${base} mt-[8px]`} aria-hidden="true">
+        <span className="block w-2.5 h-[2px] rounded-full" style={{ backgroundColor: color }} />
+      </span>
+    );
+  }
+  return (
+    <span className={`${base} mt-[7px]`} aria-hidden="true">
+      <span className="block w-[5px] h-[5px] rounded-full" style={{ backgroundColor: color }} />
+    </span>
+  );
+};
+
 export const getSlideIcon = (
   iconName?: string,
   defaultIcon: React.ComponentType<any> = Sparkles,
@@ -894,7 +924,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
               </div>
             ) : slide.slideType === "call_to_action" ? (
               <div className="space-y-4 w-full my-auto flex flex-col items-center text-center py-4">
-                {slide.showTitleIcon !== false && (
+                {slide.showTitleIcon === true && (
                   <div className="p-2 rounded-full bg-amber-500/10 border border-amber-500/25 mb-1 shrink-0">
                     {(() => {
                       const DefaultIcon =
@@ -1217,8 +1247,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
                                 key={bIdx}
                                 className="p-2.5 bg-white border border-black text-black font-semibold text-[10px] flex items-center gap-2 shadow-[2px_2px_0px_#000] rounded-lg text-left"
                               >
-                                <div className="w-5 h-5 rounded border border-black bg-emerald-100 flex items-center justify-center font-bold text-emerald-800 text-[10px] shrink-0 shadow-[1px_1px_0px_#000]">
-                                  ✓
+                                <div className="w-5 h-5 rounded border border-black bg-emerald-100 flex items-center justify-center font-bold text-emerald-800 text-[8px] shrink-0 shadow-[1px_1px_0px_#000] font-mono">
+                                  {String(bIdx + 1).padStart(2, "0")}
                                 </div>
                                 <span
                                   className="text-stone-800 font-sans tracking-wide leading-snug"
@@ -1233,10 +1263,6 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
                               </div>
                             );
                           }
-                          const IconComponent = getSlideIcon(slide.icon);
-                          const showPointIcon =
-                            (slide.slideType === "list" || slide.slideType === "content") &&
-                            slide.showPointIcons !== false;
                           return (
                             <div
                               key={bIdx}
@@ -1248,13 +1274,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
                                     : "flex-row text-left"
                               } items-start`}
                             >
-                              {showPointIcon && (
-                                <div
-                                  className="p-1 rounded-md shrink-0 mt-0.5"
-                                  style={{ backgroundColor: `${colors.primary}15` }}
-                                >
-                                  <IconComponent className="w-3.5 h-3.5" style={{ color: colors.primary }} />
-                                </div>
+                              {(slide.slideType === "list" || slide.slideType === "content") && (
+                                <PointMarker
+                                  index={bIdx}
+                                  marker={slide.pointMarker}
+                                  color={colors.primary}
+                                />
                               )}
                               <p
                                 className="text-xs leading-relaxed font-normal opacity-90 text-balance"
