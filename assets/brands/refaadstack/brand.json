@@ -1,0 +1,14 @@
+{
+  "id": "refaadstack",
+  "name": "Refaadstack",
+  "handle": "@refaadstack",
+  "website": "www.refaadstack.com",
+  "logoUrl": "/brand-assets/refaadstack/logo.png",
+  "primaryColor": "#f653b8",
+  "secondaryColor": "#b91e78",
+  "backgroundColor": "#111412",
+  "textColor": "#f6f7f4",
+  "accentColor": "#ff8fd6",
+  "fontFamily": "Space Grotesk",
+  "preferredTemplateId": "bold-neon"
+}

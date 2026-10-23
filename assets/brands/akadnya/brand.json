@@ -1,0 +1,14 @@
+{
+  "id": "akadnya",
+  "name": "Akadnya",
+  "handle": "@akadnya",
+  "website": "www.akadnya.com",
+  "logoUrl": "/brand-assets/akadnya/logo.svg",
+  "primaryColor": "#dc2626",
+  "secondaryColor": "#fbbf24",
+  "backgroundColor": "#ffffff",
+  "textColor": "#000000",
+  "accentColor": "#991b1b",
+  "fontFamily": "Playfair Display",
+  "preferredTemplateId": "editorial-warm"
+}
