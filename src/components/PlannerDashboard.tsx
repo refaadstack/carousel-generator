@@ -129,11 +129,11 @@ export const PlannerDashboard: React.FC<PlannerDashboardProps> = ({
     const d = new Date(iso);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
-  const grouped = history.reduce<Record<string, SavedCarousel[]>>((acc, item) => {
+  const grouped = history.reduce((acc: Record<string, SavedCarousel[]>, item) => {
     const k = dayKey(item.savedAt);
     (acc[k] ||= []).push(item);
     return acc;
-  }, {});
+  }, {} as Record<string, SavedCarousel[]>);
   const allDates = Object.keys(grouped).sort().reverse();
   const visibleDates = dateFilter ? [dateFilter] : allDates;
   const shownCount = visibleDates.reduce((n, d) => n + (grouped[d]?.length ?? 0), 0);

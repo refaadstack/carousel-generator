@@ -3,14 +3,23 @@ import path from "path";
 import fs from "fs";
 import os from "os";
 import crypto from "crypto";
-import { DatabaseSync } from "node:sqlite";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
+import mysql, { Pool, RowDataPacket } from "mysql2/promise";
 
 dotenv.config();
+// Dev lokal: pakai env docker tanpa menimpa env yang sudah ada.
+dotenv.config({ path: path.join(process.cwd(), "docker", ".env") });
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+
+const DB_HOST = process.env.DB_HOST || "192.168.1.250";
+const DB_PORT = Number(process.env.DB_PORT) || 3306;
+const DB_USER = process.env.DB_USER || "kael";
+const DB_PASSWORD = process.env.DB_PASSWORD || "";
+const DB_NAME = process.env.DB_NAME || "carousel_generator";
+const BRAND_KIT_DIR = path.join(process.cwd(), "assets", "brands");
 
 const AI_BASE_URL = (process.env.AI_BASE_URL || "http://host.docker.internal:8794/v1").replace(/\/+$/, "");
 const AI_API_KEY = process.env.AI_API_KEY;
@@ -322,21 +331,96 @@ app.post("/api/render-motion-video", async (req, res) => {
 });
 
 
-// ---------- Persistent history (node:sqlite, zero deps) ----------
-const DB_DIR = path.join(process.cwd(), "db");
-fs.mkdirSync(DB_DIR, { recursive: true });
-const db = new DatabaseSync(path.join(DB_DIR, "history.sqlite"));
-db.exec(`
-CREATE TABLE IF NOT EXISTS history (
-  id             TEXT PRIMARY KEY,
-  title          TEXT NOT NULL,
-  saved_at       TEXT NOT NULL,
-  pinned         INTEGER NOT NULL DEFAULT 0,
-  scheduled_date TEXT,
-  carousel_json  TEXT NOT NULL
-);`);
+// ---------- MySQL (eksternal: LXC db-mysql) ----------
+let pool: Pool | null = null;
 
-type Row = { id: string; title: string; saved_at: string; pinned: number; scheduled_date: string | null; carousel_json: string };
+function getPool(): Pool {
+  if (!pool) throw new Error("Database belum siap");
+  return pool;
+}
+
+async function initDb() {
+  if (!/^[A-Za-z0-9_]+$/.test(DB_NAME)) throw new Error("DB_NAME tidak valid");
+  const bootstrap = await mysql.createConnection({
+    host: DB_HOST,
+    port: DB_PORT,
+    user: DB_USER,
+    password: DB_PASSWORD,
+  });
+  try {
+    await bootstrap.query(
+      `CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+    );
+  } finally {
+    await bootstrap.end();
+  }
+
+  pool = mysql.createPool({
+    host: DB_HOST,
+    port: DB_PORT,
+    user: DB_USER,
+    password: DB_PASSWORD,
+    database: DB_NAME,
+    connectionLimit: 5,
+    charset: "utf8mb4",
+  });
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS history (
+      id                  VARCHAR(36) NOT NULL PRIMARY KEY,
+      title               VARCHAR(200) NOT NULL,
+      saved_at            VARCHAR(40) NOT NULL,
+      pinned              TINYINT(1) NOT NULL DEFAULT 0,
+      scheduled_date      VARCHAR(10) NULL,
+      brand_snapshot_json MEDIUMTEXT NULL,
+      carousel_json       MEDIUMTEXT NOT NULL,
+      INDEX idx_history_saved (pinned DESC, saved_at DESC),
+      INDEX idx_history_scheduled (scheduled_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+  fs.mkdirSync(BRAND_KIT_DIR, { recursive: true });
+  await migrateFromSqlite();
+}
+
+// Migrasi sekali jalan dari SQLite lama bila tabel MySQL masih kosong.
+async function migrateFromSqlite() {
+  const sqlitePath = path.join(process.cwd(), "db", "history.sqlite");
+  if (!fs.existsSync(sqlitePath)) return;
+  const db = getPool();
+  const [countRows] = await db.query<RowDataPacket[]>("SELECT COUNT(*) AS n FROM history");
+  if (Number((countRows[0] as any).n) > 0) return;
+
+  const { DatabaseSync } = await import("node:sqlite");
+  const sqlite = new DatabaseSync(sqlitePath);
+  let rows: any[] = [];
+  try {
+    rows = sqlite.prepare("SELECT * FROM history").all() as any[];
+  } catch (e: any) {
+    console.warn("Migrasi SQLite dilewati:", e?.message || e);
+    return;
+  } finally {
+    sqlite.close();
+  }
+
+  for (const r of rows) {
+    await db.execute(
+      "INSERT IGNORE INTO history (id,title,saved_at,pinned,scheduled_date,carousel_json) VALUES (?,?,?,?,?,?)",
+      [r.id, r.title, r.saved_at, r.pinned ? 1 : 0, r.scheduled_date ?? null, r.carousel_json],
+    );
+  }
+  console.log(`Migrasi SQLite selesai: ${rows.length} riwayat`);
+}
+
+type Row = RowDataPacket & {
+  id: string;
+  title: string;
+  saved_at: string;
+  pinned: number;
+  scheduled_date: string | null;
+  brand_snapshot_json: string | null;
+  carousel_json: string;
+};
+
 const toItem = (r: Row) => ({
   id: r.id,
   title: r.title,
@@ -347,21 +431,34 @@ const toItem = (r: Row) => ({
 });
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-app.get("/api/history", (req, res) => {
+app.get("/api/health", async (_req, res) => {
+  try {
+    await getPool().query("SELECT 1");
+    res.json({ ok: true, db: "up" });
+  } catch (e: any) {
+    res.status(503).json({ ok: false, db: "down", error: e?.message });
+  }
+});
+
+app.get("/api/history", async (req, res) => {
   try {
     const date = String(req.query.date ?? "");
-    const rows = date
-      ? db.prepare("SELECT * FROM history WHERE scheduled_date = ? ORDER BY pinned DESC, saved_at DESC").all(date)
-      : db.prepare("SELECT * FROM history ORDER BY pinned DESC, saved_at DESC").all();
+    const db = getPool();
+    const [rows] = date
+      ? await db.execute<Row[]>(
+          "SELECT * FROM history WHERE scheduled_date = ? ORDER BY pinned DESC, saved_at DESC",
+          [date],
+        )
+      : await db.query<Row[]>("SELECT * FROM history ORDER BY pinned DESC, saved_at DESC");
     res.json((rows as Row[]).map(toItem));
   } catch (e: any) {
     res.status(500).json({ error: e?.message || "Gagal baca riwayat" });
   }
 });
 
-app.post("/api/history", (req, res) => {
+app.post("/api/history", async (req, res) => {
   try {
-    const { carousel, title } = req.body ?? {};
+    const { carousel, title, brand } = req.body ?? {};
     if (!carousel || typeof carousel !== "object" || Array.isArray(carousel)) {
       return res.status(400).json({ error: "Field 'carousel' wajib berupa object" });
     }
@@ -374,15 +471,19 @@ app.post("/api/history", (req, res) => {
       scheduledDate: null as string | null,
       carousel,
     };
-    db.prepare("INSERT INTO history (id,title,saved_at,pinned,scheduled_date,carousel_json) VALUES (?,?,?,?,?,?)")
-      .run(item.id, item.title, item.savedAt, 0, null, JSON.stringify(carousel));
+    const brandSnapshot =
+      brand && typeof brand === "object" && !Array.isArray(brand) ? JSON.stringify(brand) : null;
+    await getPool().execute(
+      "INSERT INTO history (id,title,saved_at,pinned,scheduled_date,brand_snapshot_json,carousel_json) VALUES (?,?,?,?,?,?,?)",
+      [item.id, item.title, item.savedAt, 0, null, brandSnapshot, JSON.stringify(carousel)],
+    );
     res.status(201).json(item);
   } catch (e: any) {
     res.status(500).json({ error: e?.message || "Gagal simpan riwayat" });
   }
 });
 
-app.patch("/api/history/:id", (req, res) => {
+app.patch("/api/history/:id", async (req, res) => {
   try {
     const { pinned, scheduledDate, title } = req.body ?? {};
     const sets: string[] = [], vals: any[] = [];
@@ -395,24 +496,167 @@ app.patch("/api/history/:id", (req, res) => {
     }
     if (title !== undefined) { sets.push("title = ?"); vals.push(String(title).slice(0, 200)); }
     if (!sets.length) return res.status(400).json({ error: "Tidak ada field yang diubah" });
-    const info = db.prepare(`UPDATE history SET ${sets.join(", ")} WHERE id = ?`).run(...vals, req.params.id);
-    if (!info.changes) return res.status(404).json({ error: "Riwayat tidak ditemukan" });
-    const row = db.prepare("SELECT * FROM history WHERE id = ?").get(req.params.id) as Row;
-    res.json(toItem(row));
+    const db = getPool();
+    const [info] = await db.execute<any>(`UPDATE history SET ${sets.join(", ")} WHERE id = ?`, [
+      ...vals,
+      req.params.id,
+    ]);
+    if (!info.affectedRows) return res.status(404).json({ error: "Riwayat tidak ditemukan" });
+    const [rows] = await db.execute<Row[]>("SELECT * FROM history WHERE id = ?", [req.params.id]);
+    res.json(toItem((rows as Row[])[0]));
   } catch (e: any) {
     res.status(500).json({ error: e?.message || "Gagal update riwayat" });
   }
 });
 
-app.delete("/api/history/:id", (req, res) => {
+app.delete("/api/history/:id", async (req, res) => {
   try {
-    const info = db.prepare("DELETE FROM history WHERE id = ?").run(req.params.id);
-    if (!info.changes) return res.status(404).json({ error: "Riwayat tidak ditemukan" });
+    const [info] = await getPool().execute<any>("DELETE FROM history WHERE id = ?", [req.params.id]);
+    if (!info.affectedRows) return res.status(404).json({ error: "Riwayat tidak ditemukan" });
     res.json({ ok: true, id: req.params.id });
   } catch (e: any) {
     res.status(500).json({ error: e?.message || "Gagal hapus riwayat" });
   }
 });
+
+// ---------- Brand kit (assets/brands, versioned di repo) ----------
+type BrandRecord = Record<string, any>;
+
+const isValidBrandId = (id: string) => /^[a-z0-9][a-z0-9-]{0,63}$/.test(id);
+const brandDir = (id: string) => path.join(BRAND_KIT_DIR, id);
+const brandJsonPath = (id: string) => path.join(brandDir(id), "brand.json");
+
+function readBrands(): BrandRecord[] {
+  fs.mkdirSync(BRAND_KIT_DIR, { recursive: true });
+  const dirs = fs
+    .readdirSync(BRAND_KIT_DIR, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && isValidBrandId(d.name));
+  const out: BrandRecord[] = [];
+  for (const d of dirs) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(brandJsonPath(d.name), "utf8"));
+      if (parsed && typeof parsed === "object") out.push({ ...parsed, id: d.name });
+    } catch {
+      /* folder tanpa brand.json valid dilewati */
+    }
+  }
+  return out.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+}
+
+function sanitizeBrand(id: string, input: any): BrandRecord {
+  const str = (v: any, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+  const name = str(input?.name, 120).trim();
+  if (!name) throw Object.assign(new Error("Nama brand wajib diisi"), { status: 400 });
+  const brand: BrandRecord = {
+    id,
+    name,
+    handle: str(input?.handle, 80).trim(),
+    website: str(input?.website, 200).trim() || undefined,
+    logoUrl:
+      typeof input?.logoUrl === "string" && input.logoUrl.startsWith("/brand-assets/")
+        ? input.logoUrl.slice(0, 300)
+        : undefined,
+    primaryColor: str(input?.primaryColor, 50) || "#3b82f6",
+    secondaryColor: str(input?.secondaryColor, 50) || "#10b981",
+    backgroundColor: str(input?.backgroundColor, 200) || "#ffffff",
+    textColor: str(input?.textColor, 50) || "#1f2937",
+    accentColor: str(input?.accentColor, 50) || "#f59e0b",
+    fontFamily: str(input?.fontFamily, 80) || "Inter",
+  };
+  if (typeof input?.preferredTemplateId === "string" && input.preferredTemplateId) {
+    brand.preferredTemplateId = input.preferredTemplateId.slice(0, 80);
+  }
+  return brand;
+}
+
+const LOGO_EXT: Record<string, string> = {
+  "image/svg+xml": "svg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+app.use("/brand-assets", express.static(BRAND_KIT_DIR, { maxAge: "5m" }));
+
+app.get("/api/brands", (_req, res) => {
+  try {
+    res.json(readBrands());
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || "Gagal membaca brand" });
+  }
+});
+
+app.put("/api/brands/:id", (req, res) => {
+  try {
+    const id = String(req.params.id);
+    if (!isValidBrandId(id)) return res.status(400).json({ error: "id brand tidak valid" });
+    const brand = sanitizeBrand(id, req.body);
+    fs.mkdirSync(brandDir(id), { recursive: true });
+    fs.writeFileSync(brandJsonPath(id), JSON.stringify(brand, null, 2) + "\n");
+    res.json(brand);
+  } catch (e: any) {
+    res.status(e?.status || 500).json({ error: e?.message || "Gagal menyimpan brand" });
+  }
+});
+
+app.post("/api/brands/:id/logo", (req, res) => {
+  try {
+    const id = String(req.params.id);
+    if (!isValidBrandId(id)) return res.status(400).json({ error: "id brand tidak valid" });
+
+    const dataUrl = String(req.body?.dataUrl || "");
+    const match = /^data:(image\/(?:svg\+xml|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+    if (!match) return res.status(400).json({ error: "Logo harus SVG, PNG, atau WebP (data URL)" });
+
+    const buffer = Buffer.from(match[2], "base64");
+    if (buffer.length > 2 * 1024 * 1024) {
+      return res.status(413).json({ error: "Ukuran logo maksimal 2MB" });
+    }
+
+    const ext = LOGO_EXT[match[1]];
+    fs.mkdirSync(brandDir(id), { recursive: true });
+    for (const old of ["svg", "png", "webp"]) fs.rmSync(path.join(brandDir(id), `logo.${old}`), { force: true });
+    fs.writeFileSync(path.join(brandDir(id), `logo.${ext}`), buffer);
+
+    const logoUrl = `/brand-assets/${id}/logo.${ext}`;
+    let brand: BrandRecord = { id, name: id, handle: "" };
+    try {
+      brand = JSON.parse(fs.readFileSync(brandJsonPath(id), "utf8"));
+    } catch {
+      /* brand.json belum ada, file logo tetap disimpan */
+    }
+    brand.id = id;
+    brand.logoUrl = logoUrl;
+    fs.writeFileSync(brandJsonPath(id), JSON.stringify(brand, null, 2) + "\n");
+
+    res.json({ logoUrl });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || "Gagal menyimpan logo" });
+  }
+});
+
+app.delete("/api/brands/:id", (req, res) => {
+  try {
+    const id = String(req.params.id);
+    if (!isValidBrandId(id)) return res.status(400).json({ error: "id brand tidak valid" });
+    fs.rmSync(brandDir(id), { recursive: true, force: true });
+    res.json({ ok: true, id });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || "Gagal menghapus brand" });
+  }
+});
+
+async function initDbWithRetry(attempts = 10) {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      await initDb();
+      console.log(`Database siap: ${DB_HOST}:${DB_PORT}/${DB_NAME}`);
+      return;
+    } catch (e: any) {
+      console.error(`Database init gagal (${i}/${attempts}):`, e?.message || e);
+      if (i < attempts) await new Promise((r) => setTimeout(r, 3000));
+    }
+  }
+}
 
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
@@ -431,6 +675,7 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || "development"} mode`);
+    void initDbWithRetry();
     void warmupBrowser();
   });
 }

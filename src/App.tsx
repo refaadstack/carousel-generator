@@ -59,6 +59,21 @@ export default function App() {
 
   useEffect(() => { refreshHistory(); }, []);
 
+  // Brand kit = file di server (assets/brands). localStorage hanya cache awal.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/brands')
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`GET /api/brands -> ${res.status}`))))
+      .then((data: Brand[]) => {
+        if (cancelled || !Array.isArray(data) || data.length === 0) return;
+        setBrands(data);
+        localStorage.setItem(LOCAL_STORAGE_KEY_BRANDS, JSON.stringify(data));
+        setActiveBrandId((prev) => (data.some((b) => b.id === prev) ? prev : data[0].id));
+      })
+      .catch(() => { /* server belum siap: pakai cache localStorage */ });
+    return () => { cancelled = true; };
+  }, []);
+
   // Content Calendar Schedules state
   const [schedules, setSchedules] = useState<ContentSchedule[]>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_SCHEDULES);
@@ -119,24 +134,47 @@ export default function App() {
     }
   };
 
-  const handleSaveBrand = (updatedBrand: Brand) => {
-    setBrands((prev) => {
-      const exists = prev.some((b) => b.id === updatedBrand.id);
-      if (exists) {
-        return prev.map((b) => (b.id === updatedBrand.id ? updatedBrand : b));
-      } else {
-        return [...prev, updatedBrand];
+  const handleSaveBrand = async (updatedBrand: Brand) => {
+    let brandToSave: Brand = { ...updatedBrand };
+    try {
+      if (brandToSave.logoUrl?.startsWith('data:')) {
+        const uploadRes = await fetch(`/api/brands/${brandToSave.id}/logo`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ dataUrl: brandToSave.logoUrl }),
+        });
+        if (!uploadRes.ok) throw new Error(`upload logo -> ${uploadRes.status}`);
+        const uploaded = await uploadRes.json();
+        brandToSave.logoUrl = uploaded.logoUrl;
       }
+
+      const res = await fetch(`/api/brands/${brandToSave.id}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(brandToSave),
+      });
+      if (!res.ok) throw new Error(`PUT /api/brands -> ${res.status}`);
+      brandToSave = await res.json();
+    } catch (e: any) {
+      alert(`Gagal menyimpan brand ke server: ${e?.message || e}`);
+      return;
+    }
+
+    setBrands((prev) => {
+      const exists = prev.some((b) => b.id === brandToSave.id);
+      return exists
+        ? prev.map((b) => (b.id === brandToSave.id ? brandToSave : b))
+        : [...prev, brandToSave];
     });
 
     // Automatically apply changes if this is the active brand
-    if (updatedBrand.id === activeBrandId) {
+    if (brandToSave.id === activeBrandId) {
       let themeToApply = carousel.theme;
-      let fontHeadingToApply = updatedBrand.fontFamily || carousel.fontHeading;
+      let fontHeadingToApply = brandToSave.fontFamily || carousel.fontHeading;
       let fontBodyToApply = carousel.fontBody;
 
-      if (updatedBrand.preferredTemplateId) {
-        const preset = TEMPLATE_PRESETS.find(p => p.id === updatedBrand.preferredTemplateId);
+      if (brandToSave.preferredTemplateId) {
+        const preset = TEMPLATE_PRESETS.find(p => p.id === brandToSave.preferredTemplateId);
         if (preset) {
           themeToApply = preset.theme;
           fontHeadingToApply = preset.fontHeading;
@@ -153,7 +191,15 @@ export default function App() {
     }
   };
 
-  const handleDeleteBrand = (id: string) => {
+  const handleDeleteBrand = async (id: string) => {
+    try {
+      const res = await fetch(`/api/brands/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`DELETE /api/brands -> ${res.status}`);
+    } catch (e: any) {
+      alert(`Gagal menghapus brand: ${e?.message || e}`);
+      return;
+    }
+
     if (id === activeBrandId) {
       const remaining = brands.filter((b) => b.id !== id);
       if (remaining.length > 0) {
@@ -182,10 +228,11 @@ export default function App() {
   // Content History Actions (semua lewat API, refetch sesudah mutasi)
   const saveCarouselToHistory = async (carouselToSave: Carousel) => {
     try {
+      const brandSnapshot = brands.find((b) => b.id === carouselToSave.brandId);
       const res = await fetch('/api/history', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ carousel: carouselToSave }),
+        body: JSON.stringify({ carousel: carouselToSave, brand: brandSnapshot }),
       });
       if (!res.ok) throw new Error(`POST /api/history -> ${res.status}`);
       await refreshHistory();

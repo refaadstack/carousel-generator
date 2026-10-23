@@ -1,6 +1,0 @@
-{
-  "name": "Carousel Generator",
-  "description": "Pembuat carousel konten sosial media dengan manajemen multi-brand, bantuan AI dari Gemini, kustomisasi penuh, dan ekspor PNG/PDF kualitas tinggi.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
