@@ -87,7 +87,7 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
           title: s.title,
           subtitle: s.subtitle || '',
           body: Array.isArray(s.body) ? s.body : [s.body],
-          icon: s.icon || 'Sparkles',
+          icon: s.icon,
           slideType: s.slideType || 'content',
           ctaText: s.ctaText || (s.slideType === 'intro' ? 'Swipe Kiri >>' : s.slideType === 'call_to_action' ? 'Simpan postingan ini!' : '')
         })),

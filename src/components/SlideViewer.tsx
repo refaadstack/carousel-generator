@@ -1449,12 +1449,6 @@ export const SlideViewer: React.FC<SlideViewerProps> = ({
                                       </div>
                                     );
                                   }
-                                  const IconComponent = getSlideIcon(
-                                    currentSlide.icon,
-                                  );
-                                  const isList =
-                                    currentSlide.slideType === "list" ||
-                                    currentSlide.slideType === "content";
                                   return (
                                     <div
                                       key={bIdx}
@@ -1467,23 +1461,6 @@ export const SlideViewer: React.FC<SlideViewerProps> = ({
                                             : "flex-row text-left"
                                       } items-start`}
                                     >
-                                      {isList && (
-                                        <div
-                                          className="p-1 rounded-md shrink-0 mt-0.5"
-                                          style={{
-                                            backgroundColor: `${getSlideColors(carousel, activeBrand, currentSlide).primary}15`,
-                                          }}
-                                        >
-                                          <IconComponent
-                                            className="w-3.5 h-3.5"
-                                            style={{
-                                              color:
-                                                getSlideColors(carousel, activeBrand, currentSlide)
-                                                  .primary,
-                                            }}
-                                          />
-                                        </div>
-                                      )}
                                       <p
                                         className="text-xs leading-relaxed font-normal opacity-90 text-balance"
                                         style={{

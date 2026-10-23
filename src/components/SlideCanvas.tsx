@@ -1233,9 +1233,6 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
                               </div>
                             );
                           }
-                          const IconComponent = getSlideIcon(slide.icon);
-                          const isList =
-                            slide.slideType === "list" || slide.slideType === "content";
                           return (
                             <div
                               key={bIdx}
@@ -1247,14 +1244,6 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
                                     : "flex-row text-left"
                               } items-start`}
                             >
-                              {isList && (
-                                <div
-                                  className="p-1 rounded-md shrink-0 mt-0.5"
-                                  style={{ backgroundColor: `${colors.primary}15` }}
-                                >
-                                  <IconComponent className="w-3.5 h-3.5" style={{ color: colors.primary }} />
-                                </div>
-                              )}
                               <p
                                 className="text-xs leading-relaxed font-normal opacity-90 text-balance"
                                 style={{

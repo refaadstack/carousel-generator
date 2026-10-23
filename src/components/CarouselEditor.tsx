@@ -102,7 +102,6 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
       title: 'Judul Slide Baru',
       subtitle: 'Tambahkan subjudul menarik di sini',
       body: ['Tulis poin penjelasan singkat pertama.', 'Tulis poin penjelasan singkat kedua.'],
-      icon: 'Lightbulb',
     };
 
     const updatedSlides = [...carousel.slides, newSlide];
@@ -945,27 +944,6 @@ export const CarouselEditor: React.FC<CarouselEditorProps> = ({
                 </div>
               </div>
 
-              {/* Icon Picker (Standard lists/content only) */}
-              {(activeSlide.slideType === 'list' || activeSlide.slideType === 'content') && (
-                <div>
-                  <label className="block text-[10px] font-bold text-[#8C8881] uppercase tracking-[0.1em] mb-1">Pilih Ikon Relevan</label>
-                  <div className="grid grid-cols-5 gap-1 max-h-[85px] overflow-y-auto bg-[#F9F8F6] p-1.5 border border-[#E5E2DD] rounded-lg">
-                    {AVAILABLE_ICONS.map((iconName) => (
-                      <button
-                        key={iconName}
-                        type="button"
-                        onClick={() => updateActiveSlideField({ icon: iconName })}
-                        className={`p-1 text-[10px] rounded text-center transition truncate hover:bg-[#F3F1EE] hover:text-[#1A1A1A] font-medium cursor-pointer ${
-                          activeSlide.icon === iconName ? 'bg-[#1A1A1A] text-white shadow-sm' : 'text-[#8C8881]'
-                        }`}
-                        title={iconName}
-                      >
-                        {iconName}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
