@@ -1,14 +1,14 @@
 {
   "id": "akadnya",
-  "name": "Akadnya",
+  "name": "Akadnya.com",
   "handle": "@akadnya",
   "website": "www.akadnya.com",
   "logoUrl": "/brand-assets/akadnya/logo.svg",
-  "primaryColor": "#dc2626",
-  "secondaryColor": "#fbbf24",
-  "backgroundColor": "#ffffff",
-  "textColor": "#000000",
-  "accentColor": "#991b1b",
+  "primaryColor": "#5A1B24",
+  "secondaryColor": "#AD7F35",
+  "backgroundColor": "#FFFAF0",
+  "textColor": "#0D1F18",
+  "accentColor": "#D8BA82",
   "fontFamily": "Playfair Display",
   "preferredTemplateId": "editorial-warm"
 }
