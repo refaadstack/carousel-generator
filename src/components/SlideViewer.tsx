@@ -512,22 +512,30 @@ export const SlideViewer: React.FC<SlideViewerProps> = ({
                     }`}
                     style={
                       carousel.theme !== "neobrutalism"
-                        ? {
-                            backgroundColor: getSlideColors(carousel, activeBrand, currentSlide).text,
-                            color: getSlideColors(carousel, activeBrand, currentSlide).bg.startsWith(
-                              "linear-gradient",
-                            )
-                              ? "#1A1A1A"
-                              : getSlideColors(carousel, activeBrand, currentSlide).bg,
-                            borderColor: getSlideColors(carousel, activeBrand, currentSlide).primary,
-                          }
+                        ? activeBrand.logoUrl
+                          ? {
+                              backgroundColor: "#ffffff",
+                              borderColor:
+                                getSlideColors(carousel, activeBrand, currentSlide).primary,
+                            }
+                          : {
+                              backgroundColor:
+                                getSlideColors(carousel, activeBrand, currentSlide).text,
+                              color: getSlideColors(carousel, activeBrand, currentSlide).bg.startsWith(
+                                "linear-gradient",
+                              )
+                                ? "#1A1A1A"
+                                : getSlideColors(carousel, activeBrand, currentSlide).bg,
+                              borderColor:
+                                getSlideColors(carousel, activeBrand, currentSlide).primary,
+                            }
                         : undefined
                     }
                   >
                     {activeBrand.logoUrl ? (
                       <img
                         src={activeBrand.logoUrl}
-                        className="w-full h-full object-cover animate-fade-in"
+                        className="w-full h-full object-contain p-0.5 animate-fade-in"
                         alt={activeBrand.name}
                         referrerPolicy="no-referrer"
                       />

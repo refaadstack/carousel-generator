@@ -586,20 +586,25 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
               }`}
               style={
                 carousel.theme !== "neobrutalism"
-                  ? {
-                      backgroundColor: colors.text,
-                      color: colors.bg.startsWith("linear-gradient")
-                        ? "#1A1A1A"
-                        : colors.bg,
-                      borderColor: colors.primary,
-                    }
+                  ? brand.logoUrl
+                    ? {
+                        backgroundColor: "#ffffff",
+                        borderColor: colors.primary,
+                      }
+                    : {
+                        backgroundColor: colors.text,
+                        color: colors.bg.startsWith("linear-gradient")
+                          ? "#1A1A1A"
+                          : colors.bg,
+                        borderColor: colors.primary,
+                      }
                   : undefined
               }
             >
               {brand.logoUrl ? (
                 <img
                   src={brand.logoUrl}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain p-0.5"
                   alt={brand.name}
                   referrerPolicy="no-referrer"
                 />
