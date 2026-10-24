@@ -1143,7 +1143,7 @@ export const SlideViewer: React.FC<SlideViewerProps> = ({
                                   : "bg-white/5 border-white/10"
                               }`}
                             >
-                              <Heart className="w-4 h-4 text-rose-500 animate-bounce" />
+                              <Heart className="w-4 h-4 text-rose-500" />
                               <span
                                 className="text-[8px] font-bold uppercase tracking-wider"
                                 style={{
@@ -1552,7 +1552,7 @@ export const SlideViewer: React.FC<SlideViewerProps> = ({
                   }
                 >
                   <span>{currentSlide.ctaText}</span>
-                  <ArrowRight className="w-3 h-3 animate-pulse text-current" />
+                  <ArrowRight className="w-3 h-3 text-current" />
                 </div>
               )}
 
